@@ -1,4 +1,4 @@
-A first Example: Book Publishing
+A First Example: Book Publishing
 
 # define inputs
 price <- 20
@@ -13,7 +13,6 @@ cashflow$gross_profit <- cashflow$revenue - cashflow$direct_expense
 
 # print cashflow
 print(cashflow)
-
 
 
 Premium Music Streamers
