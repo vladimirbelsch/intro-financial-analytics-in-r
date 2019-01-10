@@ -1,0 +1,164 @@
+Calculate Payback Period
+
+# Inspect variables
+cashflows
+
+# Calculate cumulative cashflows
+cum_cashflows <- cumsum(cashflows)
+
+# Identify payback period
+payback_period <- min(which(cum_cashflows >= 0)) - 1
+
+# View result
+payback_period
+
+
+Write Payback Period Function
+
+# Define payback function: calc_payback
+calc_payback <- function(cashflows) {
+
+  cum_cashflows <- cumsum(cashflows)
+  payback_period <- min(which(cum_cashflows >= 0)) - 1
+  payback_period
+
+}
+
+# Test out our function
+cashflows <- c(-100, 50, 50, 50)
+calc_payback(cashflows) == 1
+
+
+How Would Discounting Change Payback?
+
+# normal payback period
+payback_period <- calc_payback(cashflows)
+
+# discounted payback period
+discounted_cashflows <- calc_pv(cashflows, r = 0.06, n = 0:(length(cashflows)-1) )
+payback_period_disc <- calc_payback(discounted_cashflows)
+
+# compare results
+payback_period
+payback_period_disc
+
+
+Write NPV Function
+
+# Define NPV function: calc_npv
+calc_npv <- function(cashflows, r) {
+
+  n <- 0:(length(cashflows) - 1)
+  npv <- sum( calc_pv(cashflows, r, n) )
+  return(npv)
+
+}
+
+
+Write IRR Function
+
+# Define IRR function: calc_irr
+calc_irr <- function(cashflows) {
+
+    uniroot(calc_npv, 
+        interval = c(0, 1), 
+        cashflows = cashflows)$root
+    
+}
+
+# Try out function on valid input
+cashflows <- c(-100, 20, 20, 20, 20, 20, 20, 10, 5)
+calc_irr(cashflows)
+
+
+Write Profitability Index Function
+
+# Define profitability index function: calc_profitability_index
+calc_profitability_index <- function(init_investment, future_cashflows, r) {
+    discounted_future_cashflows <- calc_npv(future_cashflows, r)
+    discounted_future_cashflows / abs(init_investment)
+}
+
+# Try out function on valid input
+init_investment <- -100
+cashflows <- c(0, 20, 20, 20, 20, 20, 20, 10, 5)
+calc_profitability_index(init_investment, cashflows, 0.08)
+
+
+Perpetuity Growth Model
+# pull last year cashflow from the cashflow vector
+last_year_cashflow <- cashflow[length(cashflow)]
+last_period_n <- length(cashflow) - 1
+
+# calculate terminal value for different discount rates
+terminal_value_1 <- last_year_cashflow / ((0.15 - 0.1)*(1 + 0.15)^last_period_n)
+terminal_value_2 <- last_year_cashflow / ((0.15 - 0.01)*(1 + 0.15)^last_period_n)
+terminal_value_3 <- last_year_cashflow / ((0.15 - (-0.05))*(1 + 0.15)^last_period_n)
+
+# inspect results
+terminal_value_1 
+terminal_value_2
+terminal_value_3
+
+
+Relationship Between NPV and IRR
+
+# calculate internal rate of return (IRR) for each stream of cashflows
+r1 <- calc_irr(cashflow1)
+r2 <- calc_irr(cashflow2)
+r3 <- calc_irr(cashflow3)
+
+# calculate net present value (NPV) for each stream of cashflows, assuming r = irr
+npv1 <- calc_npv(cashflow1, r1)
+npv2 <- calc_npv(cashflow2, r2)
+npv3 <- calc_npv(cashflow3, r3)
+
+# examine results
+npv1
+npv2
+npv3
+
+
+Pitfalls of IRR
+
+# create dataset of NPV for each cashflow and rate
+npv_by_rates <- data.frame(rates) %>%
+	group_by(rates) %>%
+    mutate(
+        npv1 = calc_npv(cf1, rates),
+        npv2 = calc_npv(cf2, rates))
+   
+# plot cashflows over different discount rates     
+ggplot(npv_by_rates, aes(x = rates, y = npv1))+
+  geom_line() +
+  geom_line(aes(y = npv2)) +
+  labs( title = "NPV by Discount Rate", subtitle = "A Tale of Two Troubling Cashflows",
+      y = "NPV ($)",x = "Discount Rate (%)") +
+  annotate("text", x = 0.2, y = -500, label = "Two break-even points") +
+  annotate("text", x = 0.2, y = -2500, label = "No break-even point")
+  
+  
+  NPV vs. IRR Decision Making
+  
+  # calculate summary metrics
+cashflow_comparison <-
+  all_cashflows %>%
+  group_by(option) %>%
+  summarize( npv = calc_npv(cashflow, 0.1),
+             irr = calc_irr(cashflow))
+             
+# inspect output
+cashflow_comparison
+             
+# visualize summary metrics
+ggplot(cashflow_comparison,
+       aes(x = npv, y = irr, col = factor(option))) +
+  geom_point(size = 5) +
+  geom_hline(yintercept = 0.1) +
+  scale_y_continuous(label = scales::percent) +
+  scale_x_continuous(label = scales::dollar) +
+  labs(title = "NPV versus IRR for Project Alternatives",
+       subtitle = "NPV calculation assumes 10% discount rate",
+       caption = "Line shows actual discount rate to asses IRR break-even",
+       x = "NPV ($)", y = "IRR (%)", col = "Option")
+       
