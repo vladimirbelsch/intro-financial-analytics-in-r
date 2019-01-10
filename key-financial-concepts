@@ -1,0 +1,131 @@
+Calculating PV
+
+# Assign input variables
+fv <- 100
+r <- 0.08
+
+# Calculate PV if receive FV in 1 year
+pv_1 <- fv / (1 + r)
+pv_1
+
+# Calculate PV if receive FV in 5 years
+pv_5 <- fv / (1 + r)^5
+pv_5
+
+# Calculate difference
+pv_1 - pv_5
+
+
+Writing a PV Function
+
+# Define PV function: calc_pv
+calc_pv <- function(fv, r, n){
+    pv <- fv / (1 + r)^n
+    pv
+}
+
+# Use PV function for a single input
+calc_pv(100, 0.08, 5)
+
+# Use PV function for range of inputs
+n_range <- 1:10
+pv_range <- calc_pv(100, 0.08, n_range)
+pv_range
+
+
+Visualizing PV by Time Delay
+
+# Calculate present values in dataframe
+present_values <- data.frame(n = 1:10) %>% mutate(pv = calc_pv(100, 0.08, n))
+
+# Plot relationship between time periods versus present value
+ggplot(present_values, 
+       aes(x = n, y = pv)) +
+  geom_line() +
+  geom_label(aes(label = paste0("$",round(pv,0)))) +
+  ylim(0,100) +
+  labs(
+    title = "Discounted Value of $100 by Year Received",
+    x = "Number of Years in the Future",
+    y = "Present Value ($)"
+  )
+  
+  
+  PV by Discount Rate and Time Delay
+  
+  # Calculate present values over range of time periods and discount rates
+present_values <- 
+  expand.grid(n = 1:10, r = seq(0.05,0.12,0.01)) %>%
+  mutate(pv = calc_pv(100, r, n))
+     
+# Plot present value versus time delay with a separate colored line for each rate
+ggplot(present_values, aes(x = n, y = pv, col = factor(r))) +
+  geom_line() +
+  ylim(0,100) +
+  labs(
+    title = "Discounted Value of $100 by Year Received",
+    x = "Number of Years in the Future",
+    y = "Present Value ($)",
+    col = "Discount Rate"
+  )
+  
+  
+  Rates of Different Duration
+  
+  # Convert monthly to other time periods
+r1_mth <- 0.005
+r1_quart <- (1 + r1_mth)^3 - 1
+r1_semi <- (1 + r1_mth)^6 - 1
+r1_ann <- (1 + r1_mth)^12 - 1
+
+# Convert years to other time periods
+r2_ann <- 0.08
+r2_mth <- (1 + r2_ann)^(1/12) - 1
+r2_quart <- (1 + r2_ann)^(1/4) - 1
+
+
+Real versus Nominal Rates
+
+# Convert real to nominal
+r1_real <- 0.08
+inflation1 <- 0.03
+(r1_nom <- (1 + r1_real) * (1 + inflation1) - 1)
+
+ # Convert nominal to real
+r2_nom <- 0.2
+inflation2 <- 0.05
+(r2_real <- ((1 + r2_nom)/(1 + inflation2)) - 1) 
+
+
+Selling a Car (Calculation)
+
+# Define cashflows
+cashflow_a <- c(5000, rep(0,6))
+cashflow_b <- c(0, rep(1000, times = 6))
+
+# Calculate pv for each time period
+disc_cashflow_a <- calc_pv(cashflow_a, 0.06, 0:6)
+disc_cashflow_b <- calc_pv(cashflow_b, 0.06, 0:6)
+
+# Calculate and report total present value for each option
+(pv_a <- sum(disc_cashflow_a))
+(pv_b <- sum(disc_cashflow_b))
+
+
+Licensing a Software (Calculation)
+
+# Define cashflows
+cashflow_old <- rep(-500, 11)
+cashflow_new <- c(-2200, rep(-300, 10))
+options <- 
+    data.frame(time = rep(0:10, 2),
+               option = c(rep("Old",11),rep("New",11)),
+               cashflow = c(cashflow_old, cashflow_new))
+                
+# Calculate total expenditure with and without discounting
+options %>%
+    group_by(option) %>%
+    summarize(sum_cashflow = sum(cashflow),
+              sum_disc_cashflow = sum(calc_pv(cashflow, 0.12, time)) )
+              
+              
