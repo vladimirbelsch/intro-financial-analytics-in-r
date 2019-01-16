@@ -1,0 +1,151 @@
+Cafe Model
+
+# Check the first few rows of the data
+head(assumptions)
+
+# Check the variable names of the data
+names(assumptions)
+
+
+Creating Scenarios
+
+# build individual scenarios
+optimist <- mutate(assumptions, unit_sales_per_day = unit_sales_per_day * 1.2, pct_cannibalization = 0.1)
+pessimist <- mutate(assumptions, unit_sales_per_day = unit_sales_per_day * 0.8, profit_margin_per_nitro = 1)
+
+# combine into one dataset
+scenarios <-
+  bind_rows(
+    mutate(pessimist, scenario = "pessimist"),
+    mutate(assumptions, scenario = "realist"),
+    mutate(optimist, scenario = "optimist")
+  )
+  
+  
+  Conducting Scenario Analysis
+  
+  # calculate scenario NPVs
+scenario_analysis <-
+scenarios %>%
+    nest(-scenario) %>%
+    mutate(cashflow = map(data, calc_model)) %>%
+    mutate(npv = map_dbl(cashflow, calc_npv_from_cashflow, r = 0.2))
+
+# inspect results
+select(scenario_analysis, scenario, npv)
+
+
+Visualizing Scenario Analysis
+
+# scenario analysis bar chart
+ggplot(data = scenario_analysis, 
+       aes(x = scenario, y = npv, fill = scenario)) + 
+    geom_bar(stat = "identity") +
+    scale_y_continuous(labels = scales::dollar) +
+	labs(title = "NPV Scenario Analysis of Nitro Coffee Expansion") +
+	guides(fill = FALSE)
+  
+  
+  Calculating Univariate Sensitivities
+  
+  # define sensitivity factor function
+factor_data <- function(data, metric, factor){
+  data[[metric]] <- data[[metric]] * factor
+  data
+}
+
+# create sensitivity analysis
+sensitivity <-
+  expand.grid(
+    factor = seq(0.5,1.5,0.1), 
+    metric = c("profit_margin_per_nitro", "labor_cost_per_hour", "pct_cannibalization", "unit_sales_per_day")) %>%
+  mutate(scenario = map2(metric, factor, ~factor_data(assumptions, .x, .y))) %>%
+  mutate(cashflow = map(scenario, calc_model)) %>% 
+  mutate(npv = map_dbl(cashflow, calc_npv_from_cashflow, r = 0.2))
+  
+  
+  Plotting Univariate Sensitivity
+  
+  ggplot(sensitivity,
+       aes(x = factor, y = npv, col = metric)
+       ) +
+  geom_line() +
+  scale_x_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(
+    title = "Sensivity Analysis",
+    x = "Factor on Original Assumption",
+    y = "Projected NPV",
+    col = "Metric"
+  )
+  
+  
+  Tidying a Cashflow
+  
+  # examine current cashflow strucutre
+cashflow
+
+# load tidyr
+library(tidyr)
+
+# create long_cashflow with gather
+long_cashflow <- gather(cashflow, key = Month, value = Value, -Metric)
+
+# create tidy_cashflow with spread
+tidy_cashflow <- spread(long_cashflow, key = Metric, value = Value)
+
+# examine results
+tidy_cashflow
+
+
+Untidying a Cashflow
+
+# examine current cashflow structure
+tidy_cashflow
+
+# create long_cashflow with gather
+long_cashflow <- gather(tidy_cashflow, key = Metric, value = Value, -Month)
+
+# create untidy_cashflow with spread
+untidy_cashflow <- spread(long_cashflow, key = Month, value = Value)
+
+# examine results
+untidy_cashflow
+
+
+Prepping Waterfall Data
+
+# compute min and maxes for each line item
+waterfall_items <-
+  mutate(gross_profit_summary,
+         end = cumsum(value), 
+         start = lag(cumsum(value),1,default = 0))
+
+# compute totals row for waterfall metrics
+waterfall_summary <- 
+  data.frame(metric = "Gross Profit", 
+             end = sum(gross_profit_summary$value), 
+             start = 0)
+
+# combine line items with summary row
+waterfall_data <-
+  bind_rows(waterfall_items, waterfall_summary) %>%
+  mutate(row_num = row_number())
+  
+  
+  Creating a Waterfall Plot
+  
+  # Plot waterfall diagram
+ggplot(waterfall_data, aes(fill = (end > start))) +
+  geom_rect(aes(xmin = row_num - 0.25, xmax = row_num + 0.25, 
+                ymin = start, ymax = end)) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = waterfall_data$row_num, labels = waterfall_data$Metric) +
+  # Styling provided for you - check out a ggplot course for more information!
+  scale_y_continuous(labels = scales::dollar) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_blank()) +
+  guides(fill = FALSE) +
+  labs(
+      title = "Gross Profit for Proposed Nitro Coffee Expansion",
+      subtitle = "Based on pro forma 10-year forecast")
